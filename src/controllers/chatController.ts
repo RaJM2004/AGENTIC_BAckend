@@ -2,10 +2,7 @@ import { Request, Response } from 'express';
 import { Message } from '../models/Message';
 import { Notification } from '../models/Notification';
 import { User } from '../models/User';
-
-interface AuthRequest extends Request {
-    user?: { userId: string };
-}
+import { AuthRequest } from '../middleware/auth';
 
 export const getMessages = async (req: AuthRequest, res: Response) => {
     try {
