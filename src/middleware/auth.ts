@@ -4,17 +4,22 @@ import jwt from 'jsonwebtoken';
 const JWT_SECRET = process.env.JWT_SECRET || 'your_super_secret_key_change_me';
 
 /**
- * Custom interface to extend Express Request with user data.
- * Using a simple interface extension which is the standard way in standalone TS Express apps.
+ * Standard Express Type Extension
  */
-export interface AuthRequest extends Request {
-    user?: {
-        userId: string;
-        role: string;
-    };
+declare global {
+    namespace Express {
+        interface Request {
+            user?: {
+                userId: string;
+                role: string;
+            };
+        }
+    }
 }
 
-export const authMiddleware = (req: AuthRequest, res: Response, next: NextFunction) => {
+export type AuthRequest = Request;
+
+export const authMiddleware = (req: Request, res: Response, next: NextFunction) => {
     const token = req.headers.authorization?.split(' ')[1];
 
     if (!token) {
@@ -30,7 +35,7 @@ export const authMiddleware = (req: AuthRequest, res: Response, next: NextFuncti
     }
 };
 
-export const adminMiddleware = (req: AuthRequest, res: Response, next: NextFunction) => {
+export const adminMiddleware = (req: Request, res: Response, next: NextFunction) => {
     if (req.user && req.user.role === 'admin') {
         next();
     } else {
