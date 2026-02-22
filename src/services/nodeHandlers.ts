@@ -345,9 +345,10 @@ export const executeNode = async (node: any, inputData: any, nodeOutputs: Record
 
 
                 // Construct export URL
-                // Note: Zoho has multiple regional domains (.com, .in, .eu)
-                // We'll default to .in since the user is in India, but could be made dynamic
-                const zohoUrl = `https://sheet.zohopublic.in/sheet/export/${workbookId}?format=csv`;
+                // Use the more reliable /publishedsheet/<ID>/csv endpoint for public sheets
+                let zohoUrl = rawWbId.includes('http') && rawWbId.includes('/csv')
+                    ? rawWbId
+                    : `https://sheet.zohopublic.in/sheet/publishedsheet/${workbookId}/csv`;
 
                 console.log('  Fetching from Zoho:', zohoUrl);
                 try {
