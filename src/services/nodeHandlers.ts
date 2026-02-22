@@ -348,6 +348,8 @@ export const executeNode = async (node: any, inputData: any, nodeOutputs: Record
                 // We will try the most common patterns in order
                 const patterns = [
                     rawWbId.includes('http') ? rawWbId : null,
+                    `https://sheet.zohopublic.in/sheet/publishedsheet/${workbookId}?download=csv`,
+                    `https://sheet.zohopublic.in/sheet/publishedsheet/${workbookId}?type=grid&download=csv`,
                     `https://sheet.zohopublic.in/sheet/publishedsheet/${workbookId}?type=csv`,
                     `https://sheet.zohopublic.in/sheet/publishedsheet/${workbookId}/csv`,
                     `https://sheet.zohopublic.in/sheet/export/${workbookId}?format=csv`
@@ -361,12 +363,16 @@ export const executeNode = async (node: any, inputData: any, nodeOutputs: Record
                         console.log('  Trying Zoho URL:', url);
                         zohoRes = await axios.get(url as string, {
                             headers: {
-                                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
+                                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
+                                'Referer': 'https://sheet.zoho.in/',
+                                'Origin': 'https://sheet.zoho.in',
+                                'Accept': 'text/csv,application/json,application/vnd.ms-excel'
                             },
                             responseType: 'arraybuffer',
-                            timeout: 5000
+                            timeout: 8000,
+                            maxRedirects: 5
                         });
-                        break; // Success!
+                        if (zohoRes.status === 200) break; // Success!
                     } catch (err: any) {
                         lastError = err;
                         console.log(`  Pattern failed (${url}):`, err.message);
