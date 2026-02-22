@@ -523,56 +523,54 @@ export const executeNode = async (node: any, inputData: any, nodeOutputs: Record
                     const result = await sendEmail(inputData);
                     return { success: true, output: `Email process result`, result };
                 }
-        }
 
             case 'resend':
-console.log('\n🚀 RESEND CLOUD EMAIL');
-const { apiKey, from, to: rawTo, subject: rawSubject, body: rawBody } = data;
-if (!apiKey) throw new Error("Resend API Key is required");
+                console.log('\n🚀 RESEND CLOUD EMAIL');
+                const { apiKey, from, to: rawTo, subject: rawSubject, body: rawBody } = data;
+                if (!apiKey) throw new Error("Resend API Key is required");
 
-const dispatchEmail = async (item: any) => {
-    const to = resolveVariables(rawTo, item, nodeOutputs);
-    const subject = resolveVariables(rawSubject, item, nodeOutputs);
-    const body = resolveVariables(rawBody, item, nodeOutputs);
+                const dispatchEmail = async (item: any) => {
+                    const to = resolveVariables(rawTo, item, nodeOutputs);
+                    const subject = resolveVariables(rawSubject, item, nodeOutputs);
+                    const body = resolveVariables(rawBody, item, nodeOutputs);
 
-    const res = await axios.post('https://api.resend.com/emails', {
-        from: from || 'onboarding@resend.dev',
-        to: to,
-        subject: subject,
-        text: body
-    }, {
-        headers: { 'Authorization': `Bearer ${apiKey}`, 'Content-Type': 'application/json' }
-    });
-    return res.data;
-};
+                    const res = await axios.post('https://api.resend.com/emails', {
+                        from: from || 'onboarding@resend.dev',
+                        to: to,
+                        subject: subject,
+                        text: body
+                    }, {
+                        headers: { 'Authorization': `Bearer ${apiKey}`, 'Content-Type': 'application/json' }
+                    });
+                    return res.data;
+                };
 
-if (Array.isArray(inputData)) {
-    const resendResults = [];
-    for (const item of inputData) {
-        try {
-            const res = await dispatchEmail(item);
-            resendResults.push(res);
-        } catch (err: any) {
-            resendResults.push({ error: err.message });
-        }
-    }
-    return { success: true, output: `Dispatched ${resendResults.length} cloud emails`, details: resendResults };
-} else {
-    const resendRes = await dispatchEmail(inputData);
-    return { success: true, output: resendRes };
-}
+                if (Array.isArray(inputData)) {
+                    const resendResults = [];
+                    for (const item of inputData) {
+                        try {
+                            const res = await dispatchEmail(item);
+                            resendResults.push(res);
+                        } catch (err: any) {
+                            resendResults.push({ error: err.message });
+                        }
+                    }
+                    return { success: true, output: `Dispatched ${resendResults.length} cloud emails`, details: resendResults };
+                } else {
+                    const resendRes = await dispatchEmail(inputData);
+                    return { success: true, output: resendRes };
+                }
 
             case 'discord':
-
-if (!data.webhookUrl) throw new Error("Webhook URL is required");
-await axios.post(data.webhookUrl, { content: data.content });
-return { success: true, output: "Discord message sent successfully" };
+                if (!data.webhookUrl) throw new Error("Webhook URL is required");
+                await axios.post(data.webhookUrl, { content: data.content });
+                return { success: true, output: "Discord message sent successfully" };
 
             default:
-return { success: true, output: inputData };
+                return { success: true, output: inputData };
         }
     } catch (error: any) {
-    return { success: false, error: error.message };
-}
+        return { success: false, error: error.message };
+    }
 };
 
