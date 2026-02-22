@@ -53,10 +53,15 @@ const resolveVariables = (template: string, context: any, nodeOutputs: Record<st
             return match;
         }
 
+        // Auto-fix for common mistake: using .output on a node (the node IS the output)
+        if (field === 'output') {
+            console.log(`    ⚠️ NOTE: accessing .output on node ${nodeId} - the node itself is the data. Removing suffix.`);
+            field = undefined;
+        }
+
         // Auto-fix for common mistake: using .response on aiModel (which returns string)
         if (field === 'response' && nodeId.startsWith('aiModel')) {
             console.log(`    ⚠️ NOTE: accessing .response on aiModel - auto-correcting to direct value`);
-            // We consciously ignore the 'field' here and just return the direct value later
             field = undefined;
         }
 
@@ -479,7 +484,9 @@ export const executeNode = async (node: any, inputData: any, nodeOutputs: Record
                     if (data.user && data.pass) {
                         console.log('    ✉️ Sending real email...');
                         const transporter = nodemailer.createTransport({
-                            service: 'gmail',
+                            host: 'smtp.gmail.com',
+                            port: 465,
+                            secure: true, // use SSL
                             auth: { user: data.user, pass: data.pass }
                         });
                         const info = await transporter.sendMail({
