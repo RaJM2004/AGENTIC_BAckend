@@ -345,30 +345,49 @@ export const executeNode = async (node: any, inputData: any, nodeOutputs: Record
 
 
                 // Construct export URL
-                // Use the more reliable /publishedsheet/<ID>/csv endpoint for public sheets
-                let zohoUrl = rawWbId.includes('http') && rawWbId.includes('/csv')
-                    ? rawWbId
-                    : `https://sheet.zohopublic.in/sheet/publishedsheet/${workbookId}/csv`;
+                // We will try the most common patterns in order
+                const patterns = [
+                    rawWbId.includes('http') ? rawWbId : null,
+                    `https://sheet.zohopublic.in/sheet/publishedsheet/${workbookId}?type=csv`,
+                    `https://sheet.zohopublic.in/sheet/publishedsheet/${workbookId}/csv`,
+                    `https://sheet.zohopublic.in/sheet/export/${workbookId}?format=csv`
+                ].filter(Boolean);
 
-                console.log('  Fetching from Zoho:', zohoUrl);
+                let zohoRes;
+                let lastError;
+
+                for (const url of patterns) {
+                    try {
+                        console.log('  Trying Zoho URL:', url);
+                        zohoRes = await axios.get(url as string, {
+                            headers: {
+                                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
+                            },
+                            responseType: 'arraybuffer',
+                            timeout: 5000
+                        });
+                        break; // Success!
+                    } catch (err: any) {
+                        lastError = err;
+                        console.log(`  Pattern failed (${url}):`, err.message);
+                    }
+                }
+
+                if (!zohoRes) {
+                    console.error('All Zoho patterns failed.');
+                    if (lastError?.response?.status === 404) {
+                        throw new Error("Zoho Sheet not found or not published. Double check that 'Allow download' is checked in the Zoho Publish menu and use the link from the 'Downloadable Link' tab.");
+                    }
+                    throw lastError || new Error("Failed to connect to Zoho Sheets");
+                }
+
                 try {
-                    const zohoRes = await axios.get(zohoUrl, {
-                        headers: {
-                            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
-                        },
-                        responseType: 'arraybuffer'
-                    });
-
                     const workbook = XLSX.read(zohoRes.data);
                     const sheetName = workbook.SheetNames[0];
                     const json = XLSX.utils.sheet_to_json(workbook.Sheets[sheetName]);
                     return { success: true, output: json };
                 } catch (err: any) {
-                    console.error('Zoho fetch failed:', err.message);
-                    if (err.response?.status === 404) {
-                        throw new Error("Zoho Sheet not found or not published. Ensure 'Publish to external world' is enabled and 'Allow download' is checked.");
-                    }
-                    throw err;
+                    throw new Error("Zoho fetched successfully but failed to parse content. Ensure the sheet contains valid data.");
                 }
 
 
