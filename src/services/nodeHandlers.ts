@@ -239,14 +239,26 @@ export const executeNode = async (node: any, inputData: any, nodeOutputs: Record
                     XLSX.writeFile(wb, fullPath);
                     return { success: true, output: `Successfully exported ${formattedContent.length} rows to ${fullPath}` };
                 } else {
-                    const readPath = data.filePath || 'uploads/data.xlsx';
-                    if (!fs.existsSync(readPath)) {
-                        throw new Error(`File not found: ${readPath}. Make sure the file exists or switch to 'Write Sheet' if you want to save data.`);
+                    const readPath = data.filePath;
+                    if (!readPath) throw new Error("File path or URL is required for reading");
+
+                    let json;
+                    if (readPath.startsWith('http')) {
+                        console.log('  Fetching from Cloud URL...');
+                        const response = await axios.get(readPath);
+                        const workbook = XLSX.read(response.data, { type: 'string' });
+                        const sheetName = workbook.SheetNames[0];
+                        const sheet = workbook.Sheets[sheetName];
+                        json = XLSX.utils.sheet_to_json(sheet);
+                    } else {
+                        if (!fs.existsSync(readPath)) {
+                            throw new Error(`File not found: ${readPath}. Make sure the file exists or switch to 'Write Sheet' if you want to save data.`);
+                        }
+                        const workbook = XLSX.readFile(readPath);
+                        const sheetName = workbook.SheetNames[0];
+                        const sheet = workbook.Sheets[sheetName];
+                        json = XLSX.utils.sheet_to_json(sheet);
                     }
-                    const workbook = XLSX.readFile(readPath);
-                    const sheetName = workbook.SheetNames[0];
-                    const sheet = workbook.Sheets[sheetName];
-                    const json = XLSX.utils.sheet_to_json(sheet);
                     return { success: true, output: json };
                 }
 
