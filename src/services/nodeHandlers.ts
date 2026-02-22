@@ -1,4 +1,5 @@
 
+import mongoose from 'mongoose';
 import axios from 'axios';
 import Groq from 'groq-sdk';
 import vm from 'vm';
@@ -273,6 +274,45 @@ export const executeNode = async (node: any, inputData: any, nodeOutputs: Record
                     }
                     return { success: true, output: json };
                 }
+
+            case 'googleSheets':
+                console.log('\n📊 GOOGLE SHEETS NODE');
+                const { spreadsheetId, range, credentialId } = data;
+                if (!spreadsheetId) throw new Error("Spreadsheet ID is required");
+
+                let apiKey = '';
+                if (credentialId) {
+                    const cred = await (mongoose.model('Credential')).findById(credentialId);
+                    if (cred) apiKey = cred.value;
+                }
+
+                // Construct export URL if no API key, or use basic public fetch
+                const sheetsUrl = apiKey
+                    ? `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/${range || 'Sheet1!A:Z'}?key=${apiKey}`
+                    : `https://docs.google.com/spreadsheets/d/${spreadsheetId}/export?format=csv`;
+
+                console.log('  Fetching from:', sheetsUrl);
+                const sheetsRes = await axios.get(sheetsUrl, {
+                    responseType: sheetsUrl.includes('export') ? 'arraybuffer' : 'json'
+                });
+
+                let sheetJson;
+                if (sheetsUrl.includes('export')) {
+                    const workbook = XLSX.read(sheetsRes.data);
+                    const sheetName = workbook.SheetNames[0];
+                    sheetJson = XLSX.utils.sheet_to_json(workbook.Sheets[sheetName]);
+                } else {
+                    const rows = sheetsRes.data.values;
+                    const headers = rows[0];
+                    sheetJson = rows.slice(1).map((row: any[]) => {
+                        const obj: any = {};
+                        headers.forEach((h: string, i: number) => {
+                            obj[h] = row[i];
+                        });
+                        return obj;
+                    });
+                }
+                return { success: true, output: sheetJson };
 
             case 'whatsapp':
                 const sendWhatsApp = async (item: any) => {
