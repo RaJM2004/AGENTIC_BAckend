@@ -44,5 +44,31 @@ router.post('/credentials', createCredential);
 router.get('/credentials', getCredentials);
 router.delete('/credentials/:id', deleteCredential);
 
+// File Uploads
+import multer from 'multer';
+import path from 'path';
+import fs from 'fs';
+
+const storage = multer.diskStorage({
+    destination: (req, file, cb) => {
+        const dir = 'uploads';
+        if (!fs.existsSync(dir)) fs.mkdirSync(dir);
+        cb(null, dir);
+    },
+    filename: (req, file, cb) => {
+        cb(null, `${Date.now()}-${file.originalname}`);
+    }
+});
+
+const upload = multer({ storage });
+
+router.post('/upload', upload.single('file'), (req: any, res) => {
+    if (!req.file) return res.status(400).json({ error: 'No file uploaded' });
+    res.json({
+        message: 'File uploaded successfully',
+        fileName: req.file.originalname,
+        filePath: req.file.path.replace(/\\/g, '/') // Ensure forward slashes for cross-platform
+    });
+});
 
 export default router;
