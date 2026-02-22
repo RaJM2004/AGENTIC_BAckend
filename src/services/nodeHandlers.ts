@@ -535,15 +535,21 @@ export const executeNode = async (node: any, inputData: any, nodeOutputs: Record
                     const subject = resolveVariables(rawSubject, item, nodeOutputs);
                     const body = resolveVariables(rawBody, item, nodeOutputs);
 
-                    const res = await axios.post('https://api.resend.com/emails', {
-                        from: from || 'onboarding@resend.dev',
-                        to: to,
-                        subject: subject,
-                        text: body
-                    }, {
-                        headers: { 'Authorization': `Bearer ${apiKey}`, 'Content-Type': 'application/json' }
-                    });
-                    return res.data;
+                    try {
+                        const res = await axios.post('https://api.resend.com/emails', {
+                            from: from || 'onboarding@resend.dev',
+                            to: to.trim(),
+                            subject: subject,
+                            text: body
+                        }, {
+                            headers: { 'Authorization': `Bearer ${apiKey}`, 'Content-Type': 'application/json' }
+                        });
+                        return res.data;
+                    } catch (err: any) {
+                        const errorMsg = err.response?.data?.message || err.message;
+                        console.error('  ❌ Resend API Error:', errorMsg);
+                        throw new Error(errorMsg);
+                    }
                 };
 
                 if (Array.isArray(inputData)) {
@@ -558,8 +564,12 @@ export const executeNode = async (node: any, inputData: any, nodeOutputs: Record
                     }
                     return { success: true, output: `Dispatched ${resendResults.length} cloud emails`, details: resendResults };
                 } else {
-                    const resendRes = await dispatchEmail(inputData);
-                    return { success: true, output: resendRes };
+                    try {
+                        const resendRes = await dispatchEmail(inputData);
+                        return { success: true, output: resendRes };
+                    } catch (err: any) {
+                        return { success: false, error: err.message };
+                    }
                 }
             }
 
