@@ -157,6 +157,19 @@ const getGroqClient = async (userId: string) => {
 };
 
 
+const extractId = (input: string) => {
+    if (!input) return '';
+    // If it's a URL, extract the ID part
+    const googleMatch = input.match(/\/spreadsheets\/d\/([a-zA-Z0-9-_]+)/);
+    const zohoMatch = input.match(/\/publishedsheet\/([a-zA-Z0-9-_]+)/) || input.match(/\/open\/([a-zA-Z0-9-_]+)/);
+
+    if (googleMatch) return googleMatch[1];
+    if (zohoMatch) return zohoMatch[1];
+
+    // If it's already an ID (not a URL), just return it trimmed
+    return input.trim();
+};
+
 export const executeNode = async (node: any, inputData: any, nodeOutputs: Record<string, any> = {}, userId: string = 'system') => {
     const { type, data } = node;
 
@@ -277,8 +290,14 @@ export const executeNode = async (node: any, inputData: any, nodeOutputs: Record
 
             case 'googleSheets':
                 console.log('\n📊 GOOGLE SHEETS NODE');
-                const { spreadsheetId, range, credentialId } = data;
-                if (!spreadsheetId) throw new Error("Spreadsheet ID is required");
+                const { spreadsheetId: rawId, range, credentialId } = data;
+                const spreadsheetId = extractId(rawId);
+                if (!spreadsheetId) throw new Error("Spreadsheet ID or URL is required");
+
+                if (rawId.includes('zoho')) {
+                    throw new Error("You are using a Zoho URL in a Google Sheets node. Please use the 'Zoho Sheet' node from the sidebar instead.");
+                }
+
 
                 let apiKey = '';
                 if (credentialId) {
@@ -316,8 +335,14 @@ export const executeNode = async (node: any, inputData: any, nodeOutputs: Record
 
             case 'zohoSheets':
                 console.log('\n🛡️ ZOHO SHEETS NODE');
-                const { workbookId, credentialId: zohoCredId } = data;
-                if (!workbookId) throw new Error("Zoho Workbook ID is required");
+                const { workbookId: rawWbId, credentialId: zohoCredId } = data;
+                const workbookId = extractId(rawWbId);
+                if (!workbookId) throw new Error("Zoho Workbook ID or URL is required");
+
+                if (rawWbId.includes('google')) {
+                    throw new Error("You are using a Google Sheets URL in a Zoho node. Please use the 'Google Sheets' node from the sidebar instead.");
+                }
+
 
                 // Construct export URL
                 // Note: Zoho has multiple regional domains (.com, .in, .eu)
