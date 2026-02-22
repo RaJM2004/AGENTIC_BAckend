@@ -207,16 +207,43 @@ export const executeNode = async (node: any, inputData: any, nodeOutputs: Record
                 return { success: true, output: sandbox.output };
 
             case 'excel':
+                console.log(`\n📄 EXCEL NODE (${data.operation || 'read'})`);
+                console.log('  File Path:', data.filePath);
+
                 if (data.operation === 'write') {
-                    const content = data.jsonData ? JSON.parse(data.jsonData) : (Array.isArray(inputData) ? inputData : [inputData]);
+                    let content;
+                    try {
+                        content = data.jsonData ? JSON.parse(data.jsonData) : inputData;
+                    } catch (e) {
+                        content = inputData;
+                    }
+
+                    // Ensure content is an array of objects
+                    if (!Array.isArray(content)) {
+                        content = [content];
+                    }
+
+                    // If items are not objects (e.g. strings from AI), wrap them
+                    const formattedContent = content.map((item: any) => {
+                        if (typeof item !== 'object' || item === null) {
+                            return { "Content": String(item) };
+                        }
+                        return item;
+                    });
+
                     const wb = XLSX.utils.book_new();
-                    const ws = XLSX.utils.json_to_sheet(content);
+                    const ws = XLSX.utils.json_to_sheet(formattedContent);
                     XLSX.utils.book_append_sheet(wb, ws, "Sheet1");
-                    XLSX.writeFile(wb, data.filePath);
-                    return { success: true, output: `Successfully wrote ${content.length} rows to ${data.filePath}` };
+
+                    const fullPath = data.filePath || 'exports/output.xlsx';
+                    XLSX.writeFile(wb, fullPath);
+                    return { success: true, output: `Successfully exported ${formattedContent.length} rows to ${fullPath}` };
                 } else {
-                    if (!fs.existsSync(data.filePath)) throw new Error(`File not found: ${data.filePath}`);
-                    const workbook = XLSX.readFile(data.filePath);
+                    const readPath = data.filePath || 'uploads/data.xlsx';
+                    if (!fs.existsSync(readPath)) {
+                        throw new Error(`File not found: ${readPath}. Make sure the file exists or switch to 'Write Sheet' if you want to save data.`);
+                    }
+                    const workbook = XLSX.readFile(readPath);
                     const sheetName = workbook.SheetNames[0];
                     const sheet = workbook.Sheets[sheetName];
                     const json = XLSX.utils.sheet_to_json(sheet);

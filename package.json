@@ -4,7 +4,7 @@
   "description": "Anvriksh Agentic AI Backend",
   "main": "dist/index.js",
   "scripts": {
-    "dev": "nodemon src/index.ts",
+    "dev": "nodemon --exec ts-node --transpile-only src/index.ts",
     "start": "node dist/index.js",
     "build": "npm install && tsc --skipLibCheck"
   },
