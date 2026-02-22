@@ -293,7 +293,7 @@ export const executeNode = async (node: any, inputData: any, nodeOutputs: Record
                     return { success: true, output: json };
                 }
 
-            case 'googleSheets':
+            case 'googleSheets': {
                 console.log('\n📊 GOOGLE SHEETS NODE');
                 const { spreadsheetId: rawId, range, credentialId } = data;
                 const spreadsheetId = extractId(rawId);
@@ -337,6 +337,7 @@ export const executeNode = async (node: any, inputData: any, nodeOutputs: Record
                     });
                 }
                 return { success: true, output: sheetJson };
+            }
 
             case 'zohoSheets':
                 console.log('\n🛡️ ZOHO SHEETS NODE');
@@ -524,7 +525,7 @@ export const executeNode = async (node: any, inputData: any, nodeOutputs: Record
                     return { success: true, output: `Email process result`, result };
                 }
 
-            case 'resend':
+            case 'resend': {
                 console.log('\n🚀 RESEND CLOUD EMAIL');
                 const { apiKey, from, to: rawTo, subject: rawSubject, body: rawBody } = data;
                 if (!apiKey) throw new Error("Resend API Key is required");
@@ -560,6 +561,7 @@ export const executeNode = async (node: any, inputData: any, nodeOutputs: Record
                     const resendRes = await dispatchEmail(inputData);
                     return { success: true, output: resendRes };
                 }
+            }
 
             case 'discord':
                 if (!data.webhookUrl) throw new Error("Webhook URL is required");
