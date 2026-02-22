@@ -239,7 +239,7 @@ export const executeNode = async (node: any, inputData: any, nodeOutputs: Record
                     XLSX.writeFile(wb, fullPath);
                     return { success: true, output: `Successfully exported ${formattedContent.length} rows to ${fullPath}` };
                 } else {
-                    const readPath = data.filePath;
+                    const readPath = data.filePath?.trim();
                     if (!readPath) throw new Error("File path or URL is required for reading");
 
                     let json;
