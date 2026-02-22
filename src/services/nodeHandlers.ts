@@ -244,12 +244,24 @@ export const executeNode = async (node: any, inputData: any, nodeOutputs: Record
 
                     let json;
                     if (readPath.startsWith('http')) {
-                        console.log('  Fetching from Cloud URL...');
-                        const response = await axios.get(readPath);
-                        const workbook = XLSX.read(response.data, { type: 'string' });
-                        const sheetName = workbook.SheetNames[0];
-                        const sheet = workbook.Sheets[sheetName];
-                        json = XLSX.utils.sheet_to_json(sheet);
+                        console.log('  Fetching from Cloud URL:', readPath);
+                        try {
+                            const response = await axios.get(readPath, {
+                                headers: {
+                                    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
+                                },
+                                responseType: 'arraybuffer' // Handle binary data like .xlsx
+                            });
+                            const workbook = XLSX.read(response.data);
+                            const sheetName = workbook.SheetNames[0];
+                            const sheet = workbook.Sheets[sheetName];
+                            json = XLSX.utils.sheet_to_json(sheet);
+                        } catch (err: any) {
+                            if (err.response?.status === 404) {
+                                throw new Error(`Cloud URL returned 404. If you are using Zoho/Google Sheets, ensure you have used the "Export as CSV" or "Download Link" URL, not the viewable page URL.`);
+                            }
+                            throw err;
+                        }
                     } else {
                         if (!fs.existsSync(readPath)) {
                             throw new Error(`File not found: ${readPath}. Make sure the file exists or switch to 'Write Sheet' if you want to save data.`);
