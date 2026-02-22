@@ -314,6 +314,38 @@ export const executeNode = async (node: any, inputData: any, nodeOutputs: Record
                 }
                 return { success: true, output: sheetJson };
 
+            case 'zohoSheets':
+                console.log('\n🛡️ ZOHO SHEETS NODE');
+                const { workbookId, credentialId: zohoCredId } = data;
+                if (!workbookId) throw new Error("Zoho Workbook ID is required");
+
+                // Construct export URL
+                // Note: Zoho has multiple regional domains (.com, .in, .eu)
+                // We'll default to .in since the user is in India, but could be made dynamic
+                const zohoUrl = `https://sheet.zohopublic.in/sheet/export/${workbookId}?format=csv`;
+
+                console.log('  Fetching from Zoho:', zohoUrl);
+                try {
+                    const zohoRes = await axios.get(zohoUrl, {
+                        headers: {
+                            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
+                        },
+                        responseType: 'arraybuffer'
+                    });
+
+                    const workbook = XLSX.read(zohoRes.data);
+                    const sheetName = workbook.SheetNames[0];
+                    const json = XLSX.utils.sheet_to_json(workbook.Sheets[sheetName]);
+                    return { success: true, output: json };
+                } catch (err: any) {
+                    console.error('Zoho fetch failed:', err.message);
+                    if (err.response?.status === 404) {
+                        throw new Error("Zoho Sheet not found or not published. Ensure 'Publish to external world' is enabled and 'Allow download' is checked.");
+                    }
+                    throw err;
+                }
+
+
             case 'whatsapp':
                 const sendWhatsApp = async (item: any) => {
                     // Resolve variables using the current item
