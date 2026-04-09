@@ -4,7 +4,7 @@ import dotenv from 'dotenv';
 dotenv.config();
 
 const resend = new Resend(process.env.RESEND_API_KEY);
-const FROM_EMAIL = 'onboarding@resend.dev'; // Use this for testing/free tier. If domain is verified, use 'info@anvriksh.com'
+const FROM_EMAIL = 'info@anvriksh.com'; // Verified domain email
 
 export const sendOtpEmail = async (email: string, otp: string) => {
     try {
