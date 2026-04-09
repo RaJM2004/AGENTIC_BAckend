@@ -2,8 +2,86 @@ import { Request, Response } from 'express';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import { User } from '../models/User';
-import { sendOtpEmail } from '../services/emailService';
+import { sendOtpEmail, sendWelcomeEmail } from '../services/emailService';
 import { AuthRequest } from '../middleware/auth';
+import { OAuth2Client } from 'google-auth-library';
+
+const client = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
+const JWT_SECRET = process.env.JWT_SECRET || 'your_super_secret_key_change_me';
+
+export const googleLogin = async (req: Request, res: Response): Promise<void> => {
+    try {
+        const { idToken } = req.body;
+        if (!idToken) {
+            res.status(400).json({ message: 'ID Token is required' });
+            return;
+        }
+
+        const ticket = await client.verifyIdToken({
+            idToken,
+            audience: process.env.GOOGLE_CLIENT_ID,
+        });
+
+        const payload = ticket.getPayload();
+        if (!payload || !payload.email) {
+            res.status(400).json({ message: 'Invalid token' });
+            return;
+        }
+
+        const { sub: googleId, email, name, picture } = payload;
+
+        let user = await User.findOne({ email });
+
+        if (!user) {
+            // Create new user if they don't exist
+            user = new User({
+                email,
+                name: name || 'Google User',
+                googleId,
+                authType: 'google',
+                isVerified: true, // Google accounts are verified
+                avatar: picture,
+                walletBalance: 0
+            });
+            await user.save();
+        } else {
+            // Update existing user to linked Google account if not already
+            if (!user.googleId) {
+                user.googleId = googleId;
+                user.authType = 'google';
+                user.isVerified = true;
+                if (!user.avatar) user.avatar = picture;
+                await user.save();
+            }
+        }
+
+        const token = jwt.sign(
+            { userId: user._id, role: user.role },
+            JWT_SECRET,
+            { expiresIn: '1d' }
+        );
+
+        // Send Welcome email (First time only)
+        if (!user.welcomeEmailSent) {
+            sendWelcomeEmail(user.email, user.name, 'Welcome to the family. You have successfully signed in with Google.');
+            user.welcomeEmailSent = true;
+            await user.save();
+        }
+
+        res.json({
+            token,
+            userId: user._id,
+            role: user.role,
+            name: user.name,
+            email: user.email,
+            walletBalance: user.walletBalance,
+            avatar: user.avatar
+        });
+    } catch (error) {
+        console.error('Google login error:', error);
+        res.status(500).json({ message: 'Internal server error' });
+    }
+};
 
 export const updateProfile = async (req: AuthRequest, res: Response): Promise<void> => {
     try {
@@ -56,8 +134,6 @@ export const deleteProfile = async (req: AuthRequest, res: Response): Promise<vo
         res.status(500).json({ message: 'Internal server error' });
     }
 };
-
-const JWT_SECRET = process.env.JWT_SECRET || 'your_super_secret_key_change_me';
 
 export const register = async (req: Request, res: Response): Promise<void> => {
     try {
@@ -121,6 +197,13 @@ export const verifyOtp = async (req: Request, res: Response): Promise<void> => {
         user.otpExpires = undefined;
         await user.save();
 
+        // Send Signup Success email (First time only)
+        if (!user.welcomeEmailSent) {
+            sendWelcomeEmail(user.email, user.name, 'Your account has been successfully verified. Welcome to our platform!');
+            user.welcomeEmailSent = true;
+            await user.save();
+        }
+
         res.json({ message: 'Email verified successfully' });
     } catch (error) {
         console.error('OTP verification error:', error);
@@ -148,12 +231,13 @@ export const login = async (req: Request, res: Response): Promise<void> => {
             res.status(401).json({ message: 'Invalid credentials' });
             return;
         }
-
         const token = jwt.sign(
             { userId: user._id, role: user.role },
             JWT_SECRET,
             { expiresIn: '1d' }
         );
+
+        // Login successful - no welcome email sent for returning users
 
         res.json({
             token,
